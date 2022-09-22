@@ -1,0 +1,34 @@
+```{r}
+diamondPrices <- "Data/DiamondPrices.csv"
+data <- read.csv(diamondPrices, header=TRUE)
+
+data$cut <- factor(data$cut)
+data$color <- factor(data$color)
+data$clarity <- factor(data$clarity)
+
+str(data)
+```
+```{r}
+set.seed(1234)
+i <- sample(1:nrow(data), nrow(data)*.80)
+
+train <- data[i,]
+test <- data[-i,]
+```
+```{r}
+lm1 <- lm(data$price~data$carat, data=train)
+pred <- predict(lm1, newdata=test)
+#cor1 <- cor(pred, test$price)
+```
+
+```{r}
+data("ChickWeight")
+set.seed(1234)
+i <- sample(1:nrow(ChickWeight), nrow(ChickWeight)*0.75, replace=FALSE)
+train <- ChickWeight[i,]
+test <- ChickWeight[-i,]
+lm1 <- lm(weight~Time, data=train)
+summary(lm1)
+pred1 <- predict(lm1, newdata=test)
+cor1 <- cor(pred1, test$weight)
+```

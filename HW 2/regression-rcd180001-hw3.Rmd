@@ -1,0 +1,124 @@
+---
+title: "Regression HW3 rcd180001"
+author: "Joshua Durana"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+#### Load Perth housing data and clean data
+```{r}
+#Load Data
+perthCSV <- ("Data/perthHousingData.csv")
+perthData <- read.csv(perthCSV, header=TRUE)
+
+#Convert columns into numeric columns
+perthData$GARAGE <- as.integer(perthData$GARAGE)
+perthData$BUILD_YEAR <- as.integer(perthData$BUILD_YEAR)
+
+#Handle NA values
+perthData[perthData == "NULL"] <- NA
+perthData$GARAGE[is.na(perthData$GARAGE)] <- 0
+perthData$BUILD_YEAR[is.na(perthData$BUILD_YEAR)] <- median(perthData$BUILD_YEAR, na.rm = TRUE)
+perthData$NEAREST_SCH_RANK[is.na(perthData$NEAREST_SCH_RANK)] <- median(perthData$NEAREST_SCH_RANK, na.rm = TRUE)
+```
+
+#### Divide into train and test sets
+Splits the data to train and test to an 80/20 ratio
+```{r}
+set.seed(920)
+#perthData <- perthData[3:10]
+sampleSize <- floor(.80 * nrow(perthData))
+ratio <- sample(seq_len(nrow(perthData)), size = sampleSize)
+perthTrain <- perthData[ratio,]
+perthTest <- perthData[-ratio,]
+```
+
+#### Data Exploration
+```{r tidy=TRUE}
+#Show the first 6 rows of the data frame
+head(perthTrain)
+
+#Output the name of all the columns
+names(perthTrain)
+
+#Get information on each row
+str(perthTrain)
+
+#Get the dimensions of the data frame
+dim(perthTrain)
+
+#Get the summary of each column
+summary(perthTrain)
+
+#Get the correlations between Price, Bedrooms, Garage, Bathrooms, Land Area, Floor Area, and the Distance to the Business District
+cor(perthTrain)
+
+#Histogram of the price
+hist(perthTrain$PRICE)
+
+#Plots of multiple columns
+#pairs(perthTrain)
+```
+
+#### Linear Regression
+I will use bedroom as my predictor for the price
+```{r}
+simplePerth <- lm(perthTrain$PRICE~perthTrain$BEDROOMS, data=perthTrain)
+summary(simplePerth)
+```
+The estimate and intercept gives us the actual linear formula to predict price. As bedrooms increase the price will increase by \$119644. The intercept if only for fitting the data and is just added with the quotient of the number of bedrooms and the estimate.The residual standard error (RSE) tells us how off our model is with the training data. Our model predicts the price of a house with an average error of \$345000. The R-squared value is valued from 0 to 1 and measures how variance is explained by the predictors as it gets closer to 1. The value is .064 which is not very good. The F statistic tells us whether the amount of bedrooms is a significant predictor of price, we want a F-statistic greater than 1 and a low p-value. The F-statistic is greater than 1 and the p-value is low, so that means the amount of bedrooms is a significant predictor of price.
+
+#### Residual Plots
+
+```{r}
+plot(simplePerth)
+```
+The Residuals vs Fitted plot shows whether the residuals have a non-linear pattern. A horizontal line with residuals equally spread over it shows the model doesn't have any non-linear relationships. The line is pretty horizontal, but the spread of the residuals is concentrated on the left side. This shows that there's a non-linear relationship in the model.
+
+The Normal Q-Q plot shows if the residuals are normally distribute, which is shown as a straight diagonal line. The line deviates at the right side, which shows that the residuals are not normally distributed.
+
+The Scale-Location plot shows if the residuals are spread equally along the ranges of predictors, which is shown as a straight line with the residuals spread equally around it. The line moves up towards the right, and the residuals are spread towards the left. This shows that the residuals aren't spread equally along the predictors.
+
+The Residuals vs Leverage plot shows if there are any influential outliers in the data. This is shown whether there are outlying values in the top or bottom right hand corner and cases outside of th Cook's distance which is shown with a dashed line. There are not cases outside of the Cook's distance. This shows that there are not influential outliers.
+
+#### Multiple Linear Regression
+I will use both the number of bedrooms and the floor area to predict price
+```{r}
+multPerth <- lm(perthTrain$PRICE~perthTrain$BEDROOMS+perthTrain$FLOOR_AREA, data = perthTrain)
+summary(multPerth)
+plot(multPerth)
+```
+
+#### Third Linear Regression
+```{r}
+perthModel <- lm(log(perthTrain$PRICE)~perthTrain$BEDROOMS+perthTrain$FLOOR_AREA+perthTrain$FLOOR_AREA*perthTrain$BEDROOMS, data=perthTrain)
+summary(perthModel)
+plot(perthModel)
+```
+#### Comparing Models
+All three models have good predictors shown by the 3 stars on each of the predictors for each model. Comparing the R-squared metric, the second model's R-squared metric was better than the other two. 
+
+In the Residuals vs Fitted plots all three were very similar, their lines were pretty horizontal and the residuals are mainly on the right side of the graph. This shows that there's a non-linear relationship between the predictors and outcome variables. 
+
+The Normal Q-Q plots for the first and second model were pretty similar, they both curved on the right side of the graph. For the third model, it mainly curved on the left side then it straightened out on the right side. This shows that the training data has a high amount of extreme values.
+
+The Scale-Location plots for the first and third model are pretty similar where the points are clustered on the right side and the line slightly curves up. The second model's points are similar to the first and third, but the line has a steep angle. This shows that our data isn't homoscedastic or have equal variance.
+
+The Residuals vs Leverage plot for the first two models are very similar, all their cases are within the Cook's distance lines. The third model has one case that's much further out on the leverage, but is within the Cook's distance lines. This shows that there aren't any influential outliers on the dataset.
+
+#### Testing
+```{r}
+#Model 1
+pred1 <- predict(simplePerth, data=perthTest)
+mse1 <- mean((pred1-perthTest$PRICE)^2)
+
+#Model 2
+pred2 <- predict(multPerth, data=perthTest)
+mse2 <- mean((pred2-perthTest$PRICE)^2)
+
+#Model 3
+pred3 <- predict(perthModel, data=perthTest)
+mse3 <- mean((pred3-perthTest$PRICE)^2)
+
+```
+
