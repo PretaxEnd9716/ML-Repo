@@ -26,7 +26,7 @@ perthData$NEAREST_SCH_RANK[is.na(perthData$NEAREST_SCH_RANK)] <- median(perthDat
 Splits the data to train and test to an 80/20 ratio
 ```{r}
 set.seed(920)
-#perthData <- perthData[3:10]
+perthData <- perthData[3:10]
 sampleSize <- floor(.80 * nrow(perthData))
 ratio <- sample(seq_len(nrow(perthData)), size = sampleSize)
 perthTrain <- perthData[ratio,]
@@ -57,13 +57,13 @@ cor(perthTrain)
 hist(perthTrain$PRICE)
 
 #Plots of multiple columns
-#pairs(perthTrain)
+pairs(perthTrain)
 ```
 
 #### Linear Regression
 I will use bedroom as my predictor for the price
 ```{r}
-simplePerth <- lm(perthTrain$PRICE~perthTrain$BEDROOMS, data=perthTrain)
+simplePerth <- lm(PRICE~BEDROOMS, data=perthTrain)
 summary(simplePerth)
 ```
 The estimate and intercept gives us the actual linear formula to predict price. As bedrooms increase the price will increase by \$119644. The intercept if only for fitting the data and is just added with the quotient of the number of bedrooms and the estimate.The residual standard error (RSE) tells us how off our model is with the training data. Our model predicts the price of a house with an average error of \$345000. The R-squared value is valued from 0 to 1 and measures how variance is explained by the predictors as it gets closer to 1. The value is .064 which is not very good. The F statistic tells us whether the amount of bedrooms is a significant predictor of price, we want a F-statistic greater than 1 and a low p-value. The F-statistic is greater than 1 and the p-value is low, so that means the amount of bedrooms is a significant predictor of price.
@@ -84,17 +84,18 @@ The Residuals vs Leverage plot shows if there are any influential outliers in th
 #### Multiple Linear Regression
 I will use both the number of bedrooms and the floor area to predict price
 ```{r}
-multPerth <- lm(perthTrain$PRICE~perthTrain$BEDROOMS+perthTrain$FLOOR_AREA, data = perthTrain)
+multPerth <- lm(PRICE~BEDROOMS+FLOOR_AREA, data = perthTrain)
 summary(multPerth)
 plot(multPerth)
 ```
 
 #### Third Linear Regression
 ```{r}
-perthModel <- lm(log(perthTrain$PRICE)~perthTrain$BEDROOMS+perthTrain$FLOOR_AREA+perthTrain$FLOOR_AREA*perthTrain$BEDROOMS, data=perthTrain)
+perthModel <- lm(log(PRICE)~BEDROOMS+FLOOR_AREA+FLOOR_AREA*BEDROOMS, data=perthTrain)
 summary(perthModel)
 plot(perthModel)
 ```
+
 #### Comparing Models
 All three models have good predictors shown by the 3 stars on each of the predictors for each model. Comparing the R-squared metric, the second model's R-squared metric was better than the other two. 
 
@@ -109,16 +110,24 @@ The Residuals vs Leverage plot for the first two models are very similar, all th
 #### Testing
 ```{r}
 #Model 1
-pred1 <- predict(simplePerth, data=perthTest)
-mse1 <- mean((pred1-perthTest$PRICE)^2)
+pred1 <- predict(simplePerth, newdata=perthTest)
+cor(pred1, perthTest$PRICE)
+mean((pred1-perthTest$PRICE)^2)
+sqrt(mean((pred1-perthTest$PRICE)^2))
 
 #Model 2
-pred2 <- predict(multPerth, data=perthTest)
-mse2 <- mean((pred2-perthTest$PRICE)^2)
+pred2 <- predict(multPerth, newdata=perthTest)
+cor(pred2, perthTest$PRICE)
+mean((pred2-perthTest$PRICE)^2)
+sqrt(mean((pred2-perthTest$PRICE)^2))
 
 #Model 3
-pred3 <- predict(perthModel, data=perthTest)
-mse3 <- mean((pred3-perthTest$PRICE)^2)
-
+pred3 <- predict(perthModel, newdata=perthTest)
+cor(pred3, perthTest$PRICE)
+mean((pred3-perthTest$PRICE)^2)
+sqrt(mean((pred3-perthTest$PRICE)^2))
 ```
 
+Comparing the correlation metric between all 3 models, the second and third model were much better than the first model. Comparing the second and third models for correlation, the second model the best by a small margin because it's closest to 1. 
+
+Comparing the mean squared regression (MSE), the third model was the best out of all the models since it has the lowest MSE value.
