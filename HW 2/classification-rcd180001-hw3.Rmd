@@ -1,0 +1,103 @@
+---
+title: "Classification"
+author: "Joshua Durana"
+date: "`r Sys.Date()`"
+output: html_document
+---
+#### Logistic Regression
+Logistic regression calculates the probability of an instance being a certain classification. It uses the log odds from the parameters and calculates whether it's a positive or negative class. The algorithm is not intensive to run and gives you a probabilistic output. But, similar to linear regression it's prone to underfit.
+
+#### Load Data and Set Factors
+
+```{r, load-data}
+#Load Data
+airplaneData <- read.csv("Data/airplaneData.csv", header = TRUE)
+
+#Convert Columns in to Factors
+cols <- c("Inflight.wifi.service", "Departure.Arrival.time.convenient", "Ease.of.Online.booking", "Food.and.drink", "Online.boarding", "Seat.comfort", "Inflight.entertainment", "On.board.service", "Leg.room.service", "Baggage.handling", "Checkin.service", "Inflight.service", "Cleanliness", "satisfaction")
+airplaneData[cols] <- lapply(airplaneData[cols], as.factor)
+
+#Drop X and ID Column
+airplaneData <- subset(airplaneData, select = -c(X, id, Gate.location))
+```
+
+#### Train and Test Sets
+
+```{r, sets}
+set.seed(2022)
+i <- sample(1:nrow(airplaneData), .80*nrow(airplaneData), replace = FALSE)
+train <- airplaneData[i,]
+test <- airplaneData[-i,]
+```
+
+####Data Exploration
+
+```{r, data exploration}
+#Show the first 6 rows of the data frame
+head(train)
+
+#Output the name of all the columns
+names(train)
+
+#Get information on each row
+str(train)
+
+#Get the dimensions of the data frame
+dim(train)
+
+#Get the summary of each column
+summary(train)
+
+#Histogram of Satisfaction
+barplot(table(train$satisfaction))
+
+#Mosaic of Class and Satisfaction
+library(vcd)
+mosaic(table(train[,c(5,22)]))
+```
+
+#### Logistic Regression
+
+```{r, logistic regression}
+airplaneLog <- glm(satisfaction~Customer.Type, data=train, family=binomial)
+summary(airplaneLog)
+```
+
+The deviance residuals quantifies a given point's contribution to the overall likelihood. It seems good since the quartiles are symmetric and the median is close to 0. The null deviance measures the lack of fit of the model with only the intercept. The residual measures the lack of fit of the model of the entire model. We want the residual deviance to be much smaller than the null deviance, which is the case with our model. The Akaike Information Criterion (AIC) are used to compare between models and lower is the better. The Fisher Scoring iterations tells us how many times the glm function iterated to the maximum likelihood estimates for the coefficients.
+
+#### Naive Bays
+
+```{r, naive bayes}
+library(e1071)
+airplaneNB <- naiveBayes(satisfaction~., data=train)
+airplaneNB
+```
+
+For continuous data such as Age, it outputs the means and standard deviation for each satisfaction levels. For discrete variables, it'll output the probabilities of a certain factor being satisfied or not.
+
+#### Testing
+
+```{r, Testing Model}
+#Logical Regression
+prob <- predict(airplaneLog, newdata=test, type="response")
+pred <- ifelse(prob>.5, 2, 1)
+acc <- mean(pred==as.integer(test$satisfaction))
+acc
+
+#Naive Bayes
+pred1 <- predict(airplaneNB, newdata=test, type="class")
+table(pred1, test$satisfaction)
+mean(pred1==test$satisfaction)
+```
+
+The accuracy on logistic regression isn't bad, but I feel it could be better if I chose different predictors. The accuracy on the Naive Bayes model is much better than logistic regression, most likely due to
+
+For logistic regression works well larger data sets and runs faster than other algorithms. But, logistic regression has a high bias that causes it to underfit Naive Bayes works well with smaller data sets and can work with multiple dimensions better than logistic regression. But, if the predictors are not independent it hurts the algorithm's performance. 
+
+Accuracy is the most common metric to evaluate results in classification, it gives you the percentage of correct predictions to the number of observations. But it doesn't take to account false or true positives.
+
+Sensitivity measures the ratio of accurate classifications from all of the true predictions. This means that if the model predicts something to be true, the sensitivity measures if the model is correct. Specificity is similar to sensitivity, but for false predictions. Both, don't give you a full picture of the accuracy of the model.
+
+Kappa is similar to accuracy, but adjusts to account for the chance of a correct prediction. One drawback is there's not a universally agreed way to interpret Kappa.
+
+The ROC curve shows us the how the false and true positive rates interact with each other. The AUC is the area under the ROC curve and helps us compare other ROC curves and ranges from 0 to 1.
