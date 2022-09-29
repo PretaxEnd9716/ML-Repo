@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <math.h>
+#include <chrono>
 using namespace std;
 
 ifstream openFile();
@@ -12,6 +13,9 @@ vector<double> matrixMult(vector<double> matrixOne, vector<vector<double>> matri
 vector<double> matrixMult(vector<vector<double>> matrixOne, vector<double> matrixTwo);
 vector<double> error(vector<double> probabilityVector, vector<double> target);
 vector<double> newWeights(double learningRate, vector<double> weight, vector<vector<double>> dm, vector<double> e);
+vector<double> probability(vector<double> predicted);
+vector<double> prediction(vector<double> probilities);
+double accuracy(vector<double> predictions, vector<double> test);
 
 int main(int argc, char** argv)
 {
@@ -72,6 +76,11 @@ int main(int argc, char** argv)
     vector<vector<double>> dm = dataMatrix(sexTrain);
     double learning_rate = .001;
 
+    //Start Time
+    chrono::time_point<chrono::system_clock> start, stop;
+    start = chrono::system_clock::now();
+
+    //Gradient Descent
     for(int i = 0; i < 500; i++)
     {
         vector<double> pv = sigmoid(matrixMult(weights, dm));
@@ -80,8 +89,71 @@ int main(int argc, char** argv)
         cout << i << endl;
     }
 
-    cout << weights[0] << endl;
+    //End Time
+    stop = chrono::system_clock::now();
+    chrono::duration<double> difference = (stop - start);
+
+    //Testing
+    vector<vector<double>> tm = dataMatrix(sexTest);
+    vector<double> predicted = matrixMult(weights, tm);
+    vector<double> probabilities = probability(predicted);
+    vector<double> predictions = prediction(probabilities);
+
+    //Calculate Metrics
+    double a = accuracy(predictions, survivedTest);
+    cout << difference.count() << " seconds" << endl;
+
     return 0;
+}
+
+//Compute Accuracy
+double accuracy(vector<double> predictions, vector<double> test)
+{
+    int correctPredictions = 0;
+
+    //Count the number of correct predictions
+    for(int i = 0; i < predictions.size(); i++)
+    {
+        if(predictions.at(i) == test.at(i))
+            correctPredictions++;
+    }
+
+    return correctPredictions / (double)predictions.size();
+}
+
+//From probabilities obtain the predictions
+vector<double> prediction(vector<double> probabilities)
+{
+    vector<double> pred(probabilities.size());
+
+    //Based on the probabilties predict the value of survive
+    for(int i = 0; i < pred.size(); i++)
+    {
+        if(probabilities.at(i) > .5)
+        {
+            pred.at(i) = 1;
+        }
+        else
+        {
+            pred.at(i) = 0;
+        }
+    }
+
+    return pred;
+}
+
+//Calculate probabilities vector
+vector<double> probability(vector<double> predicted)
+{
+    vector<double> p(predicted.size());
+
+    //Calculate the probabilties for each instance
+    for(int i = 0; i < p.size(); i++)
+    {
+        p.at(i) = exp(predicted.at(i)) / (1 + exp(predicted.at(i)));
+    }
+
+    return p;
 }
 
 //Calculates new weights
