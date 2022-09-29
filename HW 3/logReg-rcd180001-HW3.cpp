@@ -16,6 +16,8 @@ vector<double> newWeights(double learningRate, vector<double> weight, vector<vec
 vector<double> probability(vector<double> predicted);
 vector<double> prediction(vector<double> probilities);
 double accuracy(vector<double> predictions, vector<double> test);
+double specificity(vector<double> predictions, vector<double> test);
+double sensitivity(vector<double> predictions, vector<double> test);
 
 int main(int argc, char** argv)
 {
@@ -99,11 +101,56 @@ int main(int argc, char** argv)
     vector<double> probabilities = probability(predicted);
     vector<double> predictions = prediction(probabilities);
 
-    //Calculate Metrics
+    //Calculate and print metrics
     double a = accuracy(predictions, survivedTest);
-    cout << difference.count() << " seconds" << endl;
+    double sens = sensitivity(predictions, survivedTest);
+    double spec = specificity(predictions, survivedTest);
+
+    cout << "\n--Metrics--\n";
+    cout << "Accuracy: " << a << endl;
+    cout << "Sensitivity: " << sens << endl;
+    cout << "Specificity: " << spec << endl;
+    cout << "Algorithm Run Time: " << difference.count() << " seconds" << endl;
 
     return 0;
+}
+
+//Compute Sensitivity
+double sensitivity(vector<double> predictions, vector<double> test)
+{
+    int truePositive = 0;
+    int falseNegative = 0;
+
+    //Count the number of number of true positives and false negatives
+    for(int i = 0; i < predictions.size(); i++)
+    {
+        if(predictions.at(i) == 1 && test.at(i) == 1)
+            truePositive++;
+
+        if(predictions.at(i) == 0 && test.at(i) == 1)
+            falseNegative++;
+    }
+
+    return truePositive / (double)(truePositive + falseNegative);
+}
+
+//Compute Specificity
+double specificity(vector<double> predictions, vector<double> test)
+{
+    int trueNegative = 0;
+    int falsePositive = 0;
+
+    //Count the number of number of true negatives and false positives
+    for(int i = 0; i < predictions.size(); i++)
+    {
+        if(predictions.at(i) == 0 && test.at(i) == 0)
+            trueNegative++;
+
+        if(predictions.at(i) == 1 && test.at(i) == 0)
+            falsePositive++;
+    }
+
+    return trueNegative / (double)(trueNegative + falsePositive);
 }
 
 //Compute Accuracy
