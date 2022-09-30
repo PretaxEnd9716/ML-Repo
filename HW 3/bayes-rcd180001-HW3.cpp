@@ -10,8 +10,10 @@ double sensitivity(vector<double> predictions, vector<double> test);
 double specificity(vector<double> predictions, vector<double> test);
 double accuracy(vector<double> predictions, vector<double> test);
 ifstream openFile();
-vector<vector<double>> qualitative(vector<double> target, vector<double> predictor);
+vector<vector<double>> qualitativeSex(vector<double> target, vector<double> predictor, vector<double> surviveCount);
+vector<vector<double>> qualitativeClass(vector<double> target, vector<double> predictor, vector<double> surviveCount);
 vector<vector<double>> quantitative(vector<double> target, vector<double> predictor);
+vector<double> countTarget(vector<double> target);
 
 int main(int argc, char** argv)
 {
@@ -68,17 +70,87 @@ int main(int argc, char** argv)
     vector<double> ageTrain(age.begin(), age.begin() + 800);
     vector<double> ageTest(age.begin() + 801, age.end());
 
-    vector<double> pclass(pclass.begin(), pclass.begin() + 800);
-    vector<double> pclass(pclass.begin() + 801, pclass.end());
+    vector<double> pclassTrain(pclass.begin(), pclass.begin() + 800);
+    vector<double> pclassTest(pclass.begin() + 801, pclass.end());
+
+    //Count the number of survived
+    vector<double> sc = countTarget(survivedTrain);
+    vector<vector<double>> sexLikelihood = qualitativeSex(survivedTrain, sexTrain, sc);
+    vector<vector<double>> classLikelihood = qualitativeClass(survivedTrain, pclassTrain, sc);
+
 }
 
-vector<double> targetCount 
-
-vector<vector<double>> qualitative(vector<double> target, vector<double> predictor)
+//Calculate counts for survived
+vector<double> countTarget(vector<double> target)
 {
-    
+    vector<double> counts = {0, 0};
+
+    //Count each value
+    for(int i = 0; i < target.size(); i++)
+    {
+        counts.at(target.at(i))++;
+    }
+
+    return counts;
 }
 
+//Calculate likelihood for sex
+vector<vector<double>> qualitativeSex(vector<double> target, vector<double> predictor, vector<double> surviveCount)
+{
+    vector<vector<double>> sexLikelihood = {{0,0},{0,0}};
+
+    //Count each sex and whether they survived
+    for(int i = 0; i < predictor.size(); i++)
+    {
+        double currentSurvived = target.at(i);
+        double currentSex = predictor.at(i);
+
+        sexLikelihood.at(currentSurvived).at(currentSex)++;
+    }
+
+    //Calcuate likelihood
+    for(int survived = 0; survived < sexLikelihood.size(); survived++)
+    {
+        vector<double> currentSurvived = sexLikelihood.at(survived);
+
+        for(int sex = 0; sex < currentSurvived.size(); sex++)
+        {
+            sexLikelihood.at(survived).at(sex) = currentSurvived.at(sex) / surviveCount.at(survived); 
+        }
+    }
+
+    return sexLikelihood;
+}
+
+//Calculate likelihood for class
+vector<vector<double>> qualitativeClass(vector<double> target, vector<double> predictor, vector<double> surviveCount)
+{
+    vector<vector<double>> classLikelihood = {{0,0,0},{0,0,0}};
+
+    //Count each class and whether they survived
+    for(int i = 0; i < predictor.size(); i++)
+    {
+        double currentSurvived = target.at(i);
+        double currentClass = predictor.at(i) - 1;
+
+        classLikelihood.at(currentSurvived).at(currentClass)++;
+    }
+
+    //Calculate Likelihood
+    for(int survived = 0; survived < classLikelihood.size(); survived++)
+    {
+        vector<double> currentSurvived = classLikelihood.at(survived);
+
+        for(int pclass = 0; pclass < currentSurvived.size(); pclass++)
+        {
+            classLikelihood.at(survived).at(pclass) = currentSurvived.at(pclass) / surviveCount.at(survived); 
+        }
+    }
+
+    return classLikelihood;
+}
+
+//Calulcate likelihood for quantitative data
 vector<vector<double>> quantitative(vector<double> target, vector<double> predictor)
 {
 
