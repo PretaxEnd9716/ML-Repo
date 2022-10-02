@@ -47,10 +47,10 @@ int main(int argc, char** argv)
         getline(filestream, age_in, '\n');
 
         //Store each column
-        pclass.at(numObservations) = stoi(class_in);
-        survived.at(numObservations) = stoi(survived_in);
-        sex.at(numObservations) = stoi(sex_in);
-        age.at(numObservations) = stoi(age_in);
+        pclass.at(numObservations) = stof(class_in);
+        survived.at(numObservations) = stof(survived_in);
+        sex.at(numObservations) = stof(sex_in);
+        age.at(numObservations) = stof(age_in);
 
         numObservations++;
     }
@@ -70,8 +70,6 @@ int main(int argc, char** argv)
 
     vector<double> survivedTrain(survived.begin(), survived.begin() + 800);
     vector<double> survivedTest(survived.begin() + 801, survived.end());
-
-
 
     //Setup Gradient Descent
     vector<double> weights {1, 1};
@@ -105,7 +103,13 @@ int main(int argc, char** argv)
     double sens = sensitivity(predictions, survivedTest);
     double spec = specificity(predictions, survivedTest);
 
-    cout << "\n--Metrics--\n";
+
+
+    cout << "\n--Logistic Regression Coefficients--\n";
+    cout << "Intercept: " << weights.at(1) << endl;
+    cout << "Sex: " << weights.at(0) << endl;
+
+    cout << "--Metrics--\n";
     cout << "Accuracy: " << a << endl;
     cout << "Sensitivity: " << sens << endl;
     cout << "Specificity: " << spec << endl;

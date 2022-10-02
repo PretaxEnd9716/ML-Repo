@@ -47,10 +47,10 @@ int main(int argc, char** argv)
         getline(filestream, age_in, '\n');
 
         //Store each column
-        pclass.at(numObservations) = stoi(class_in);
-        survived.at(numObservations) = stoi(survived_in);
-        sex.at(numObservations) = stoi(sex_in);
-        age.at(numObservations) = stoi(age_in);
+        pclass.at(numObservations) = stof(class_in);
+        survived.at(numObservations) = stof(survived_in);
+        sex.at(numObservations) = stof(sex_in);
+        age.at(numObservations) = stof(age_in);
 
         numObservations++;
     }
@@ -66,16 +66,16 @@ int main(int argc, char** argv)
 
     //Splits sex and survived for train and test vectors
     vector<double> sexTrain(sex.begin(), sex.begin() + 800);
-    vector<double> sexTest(sex.begin() + 801, sex.end());
+    vector<double> sexTest(sex.begin() + 800, sex.end());
 
     vector<double> survivedTrain(survived.begin(), survived.begin() + 800);
-    vector<double> survivedTest(survived.begin() + 801, survived.end());
+    vector<double> survivedTest(survived.begin() + 800, survived.end());
 
     vector<double> ageTrain(age.begin(), age.begin() + 800);
-    vector<double> ageTest(age.begin() + 801, age.end());
+    vector<double> ageTest(age.begin() + 800, age.end());
 
     vector<double> pclassTrain(pclass.begin(), pclass.begin() + 800);
-    vector<double> pclassTest(pclass.begin() + 801, pclass.end());
+    vector<double> pclassTest(pclass.begin() + 800, pclass.end());
 
     //Start Time
     chrono::time_point<chrono::system_clock> start, stop;
@@ -97,7 +97,8 @@ int main(int argc, char** argv)
     double spec = specificity(predictions, survivedTest);
 
     //Print Metrics
-    cout << "\n--Metrics--\n";
+    cout << "\n--Naive Bayes Metrics--\n";
+    
     cout << "Accuracy: " << a << endl;
     cout << "Sensitivity: " << sens << endl;
     cout << "Specificity: " << spec << endl;
@@ -143,13 +144,31 @@ vector<vector<double>> survProb(vector<double> survivedTrain, vector<double> sex
     vector<vector<double>> probabilities;
     for(int i = 0; i < ageTest.size(); i++)
     {
-        double survived = classLikelihood.at(1).at(pclassTest.at(i) - 1) * sexLikelihood.at(1).at(sexTest.at(i)) * survivalPerc.at(1) * ageLikelihood(ageTest.at(i), meanAge.at(1), varAge.at(1));
-        double dead = classLikelihood.at(0).at(pclassTest.at(i) - 1) * sexLikelihood.at(0).at(sexTest.at(i)) * survivalPerc.at(0) * ageLikelihood(ageTest.at(i), meanAge.at(0), varAge.at(0));
+        //double survived = classLikelihood.at(1).at(pclassTest.at(i) - 1) survivalPerc.at(1) * ageLikelihood(ageTest.at(i), meanAge.at(1), varAge.at(1));
+        //double dead = classLikelihood.at(0).at(pclassTest.at(i) - 1) * sexLikelihood.at(0).at(sexTest.at(i)) * survivalPerc.at(0) * ageLikelihood(ageTest.at(i), meanAge.at(0), varAge.at(0));
+        double dead = classLikelihood.at(1).at(pclassTest.at(i) - 1) * sexLikelihood.at(1).at(sexTest.at(i)) *  survivalPerc.at(1) * ageLikelihood(ageTest.at(i), meanAge.at(1), varAge.at(1));
+        double survived = classLikelihood.at(0).at(pclassTest.at(i) - 1) * sexLikelihood.at(0).at(sexTest.at(i)) * survivalPerc.at(0) * ageLikelihood(ageTest.at(i), meanAge.at(0), varAge.at(0));
         double denom = survived + dead;
 
-        vector<double> instance {survived / denom, dead / denom};
+        vector<double> instance {survived/denom, dead/denom};
         probabilities.push_back(instance);
     }
+
+    cout << "\n--Summary--\n";
+    cout << "A-Priori Probabilities: " << survivalPerc.at(0) << " " << survivalPerc.at(1) << endl;
+    cout << "\n--Conditional Probabilities--";
+
+    cout << "\nClass\n";
+    cout << "0: " << classLikelihood.at(0).at(0) << " " << classLikelihood.at(0).at(1) << " " << classLikelihood.at(0).at(1) << endl;
+    cout << "1: " << classLikelihood.at(1).at(0) << " " << classLikelihood.at(1).at(1) << " " << classLikelihood.at(1).at(1) << endl;
+
+    cout << "\nSex\n";
+    cout << "0: " << sexLikelihood.at(0).at(0) << " " << sexLikelihood.at(0).at(1) << endl;
+    cout << "1: " << sexLikelihood.at(1).at(0) << " " << sexLikelihood.at(1).at(1) << endl;
+
+    cout << "\nAge\n";
+    cout << "Mean: " << meanAge.at(0) << " " << meanAge.at(1) << endl;
+    cout << "Variance: " << varAge.at(0) << " " << varAge.at(1) << endl;
 
     return probabilities;
 }
@@ -157,6 +176,7 @@ vector<vector<double>> survProb(vector<double> survivedTrain, vector<double> sex
 //Calculates the probabilty of survival of a given age
 double ageLikelihood(double age, double meanAge, double varAge)
 {
+    //return exp(-(pow(age - meanAge,2)) / (2 * varAge));
     return 1 / sqrt(2 * M_PI * varAge) * exp(-(pow(age - meanAge,2)) / (2 * varAge));
 }
 
