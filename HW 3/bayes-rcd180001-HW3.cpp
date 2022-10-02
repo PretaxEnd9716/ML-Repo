@@ -12,8 +12,12 @@ double accuracy(vector<double> predictions, vector<double> test);
 ifstream openFile();
 vector<vector<double>> qualitativeSex(vector<double> target, vector<double> predictor, vector<double> surviveCount);
 vector<vector<double>> qualitativeClass(vector<double> target, vector<double> predictor, vector<double> surviveCount);
-vector<vector<double>> quantitative(vector<double> target, vector<double> predictor);
+vector<double> mean(vector<double> target, vector<double> predictor, vector<double> surviveCount);
+vector<double> variance(vector<double> target, vector<double> predictor, vector<double> surviveCount, vector<double> mean);
+double ageLikelihood(double age, double meanAge, double varAge);
 vector<double> countTarget(vector<double> target);
+vector<vector<double>> survProb(vector<double> survivedTrain, vector<double> sexTrain, vector<double> pclassTrain, vector<double> ageTrain, vector<double> sexTest, vector<double> pclassTest, vector<double> ageTest);
+vector<double> predict(vector<vector<double>> probabilities);
 
 int main(int argc, char** argv)
 {
@@ -73,11 +77,87 @@ int main(int argc, char** argv)
     vector<double> pclassTrain(pclass.begin(), pclass.begin() + 800);
     vector<double> pclassTest(pclass.begin() + 801, pclass.end());
 
-    //Count the number of survived
+    //Start Time
+    chrono::time_point<chrono::system_clock> start, stop;
+    start = chrono::system_clock::now();
+
+    //Calculates all probabilities
+    vector<vector<double>> probabilities = survProb(survivedTrain, sexTrain, pclassTrain, ageTrain, sexTest, pclassTest, ageTest); 
+
+    //End Time
+    stop = chrono::system_clock::now();
+    chrono::duration<double> difference = (stop - start);
+
+    //Gets predictions
+    vector<double> predictions = predict(probabilities);
+
+    //Calculate Metrics
+    double a = accuracy(predictions, survivedTest);
+    double sens = sensitivity(predictions, survivedTest);
+    double spec = specificity(predictions, survivedTest);
+
+    //Print Metrics
+    cout << "\n--Metrics--\n";
+    cout << "Accuracy: " << a << endl;
+    cout << "Sensitivity: " << sens << endl;
+    cout << "Specificity: " << spec << endl;
+    cout << "Algorithm Run Time: " << difference.count() << " seconds" << endl;
+}
+
+//Predicts with the probabilties
+vector<double> predict(vector<vector<double>> probabilities)
+{
+    vector<double> predictions(probabilities.size());
+
+    for(int i = 0; i < probabilities.size(); i++)
+    {
+        if(probabilities.at(i).at(0) > probabilities.at(i).at(1))
+        {
+            predictions.at(i) = 0;
+        }
+        else
+        {
+            predictions.at(i) = 1;
+        }
+    }
+
+    return predictions;
+}
+
+//Calculates probability of survival given all the predictors
+vector<vector<double>> survProb(vector<double> survivedTrain, vector<double> sexTrain, vector<double> pclassTrain, vector<double> ageTrain, vector<double> sexTest, vector<double> pclassTest, vector<double> ageTest)
+{
+    //Count the number of survived and precentage of each survival levels
     vector<double> sc = countTarget(survivedTrain);
+    vector<double> survivalPerc = {sc.at(0)/survivedTrain.size(), sc.at(1)/survivedTrain.size()};
+
+    //Calculate likelihood for sex and class
     vector<vector<double>> sexLikelihood = qualitativeSex(survivedTrain, sexTrain, sc);
     vector<vector<double>> classLikelihood = qualitativeClass(survivedTrain, pclassTrain, sc);
 
+    //Calculate mean and variance for age
+    vector<double> meanAge = mean(survivedTrain, ageTrain, sc);
+    vector<double> varAge = variance(survivedTrain, ageTrain, sc, meanAge);
+
+    //Go through each row and calculate each probability of survival
+    vector<vector<double>> probabilities;
+    for(int i = 0; i < ageTest.size(); i++)
+    {
+        double survived = classLikelihood.at(1).at(pclassTest.at(i) - 1) * sexLikelihood.at(1).at(sexTest.at(i)) * survivalPerc.at(1) * ageLikelihood(ageTest.at(i), meanAge.at(1), varAge.at(1));
+        double dead = classLikelihood.at(0).at(pclassTest.at(i) - 1) * sexLikelihood.at(0).at(sexTest.at(i)) * survivalPerc.at(0) * ageLikelihood(ageTest.at(i), meanAge.at(0), varAge.at(0));
+        double denom = survived + dead;
+
+        vector<double> instance {survived / denom, dead / denom};
+        probabilities.push_back(instance);
+    }
+
+    return probabilities;
+}
+
+//Calculates the probabilty of survival of a given age
+double ageLikelihood(double age, double meanAge, double varAge)
+{
+    return 1 / sqrt(2 * M_PI * varAge) * exp(-(pow(age - meanAge,2)) / (2 * varAge));
 }
 
 //Calculate counts for survived
@@ -150,10 +230,34 @@ vector<vector<double>> qualitativeClass(vector<double> target, vector<double> pr
     return classLikelihood;
 }
 
-//Calulcate likelihood for quantitative data
-vector<vector<double>> quantitative(vector<double> target, vector<double> predictor)
+//Calculate mean for quantitative data
+vector<double> mean(vector<double> target, vector<double> predictor, vector<double> surviveCount)
 {
+    vector<double> meanPredictors = {0,0};
 
+    //Calculate mean age for each survived level
+    for(int i = 0; i < target.size(); i++)
+        meanPredictors.at(target.at(i)) += predictor.at(i);
+    
+    meanPredictors.at(0) = meanPredictors.at(0) / surviveCount.at(0);
+    meanPredictors.at(1) = meanPredictors.at(1) / surviveCount.at(1);
+
+    return meanPredictors;
+}
+
+//Calculate variance for quantitative data
+vector<double> variance(vector<double> target, vector<double> predictor, vector<double> surviveCount, vector<double> mean)
+{
+    vector<double> varPredictor = {0,0};
+
+    //Calculate variance for each survive level
+    for(int i = 0; i < predictor.size(); i++)
+        varPredictor.at(target.at(i)) += ((predictor.at(i) - (mean.at(target.at(i))))*((predictor.at(i) - (mean.at(target.at(i))))));
+
+    varPredictor.at(0) = varPredictor.at(0) / (surviveCount.at(0) - 1);
+    varPredictor.at(1) = varPredictor.at(1) / (surviveCount.at(1) - 1);
+
+    return varPredictor;
 }
 
 //Compute Sensitivity

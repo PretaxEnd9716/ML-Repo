@@ -88,7 +88,6 @@ int main(int argc, char** argv)
         vector<double> pv = sigmoid(matrixMult(weights, dm));
         vector<double> e = error(pv, survivedTrain);
         weights = newWeights(learning_rate, weights, dm, e);
-        cout << i << endl;
     }
 
     //End Time
