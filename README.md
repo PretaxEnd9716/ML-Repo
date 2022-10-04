@@ -8,3 +8,8 @@
 ## [ Homework 2 ]
 #### [ Classification Document ]( https://github.com/PretaxEnd9716/ML-Repo/blob/main/HW%202/classification-rcd180001-hw2.pdf )
 #### [ Regression Document ]( https://github.com/PretaxEnd9716/ML-Repo/blob/main/HW%202/regression-rcd180001-hw2.pdf )
+
+## [ Homework 3 ]
+#### [ Document ]( https://github.com/PretaxEnd9716/ML-Repo/blob/main/HW%203/ML%20From%20Scratch%20rcd180001.pdf )
+#### [ Naive Bayes ]( https://github.com/PretaxEnd9716/ML-Repo/blob/main/HW%203/bayes-rcd180001-HW3.cpp )
+#### [ Logistic Regression ]( https://github.com/PretaxEnd9716/ML-Repo/blob/main/HW%203/logReg-rcd180001-HW3.cpp )
