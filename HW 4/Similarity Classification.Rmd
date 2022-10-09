@@ -1,0 +1,139 @@
+---
+title: "Similarity Classification"
+author: "Joshua Durana"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Source : <https://www.kaggle.com/datasets/teejmahal20/airline-passenger-satisfaction>
+
+This data set contains data from an airline satisfaction survey
+
+## Load and Clean Data
+
+```{r load and clean data}
+airplaneData <- read.csv("Data/airplaneData.csv", header = TRUE)
+
+#Convert survey items to factors
+cols <- c("Gender", "Customer.Type", "Class", "Inflight.wifi.service", "Departure.Arrival.time.convenient", "Ease.of.Online.booking", "Food.and.drink", "Online.boarding", "Seat.comfort", "Inflight.entertainment", "On.board.service", "Leg.room.service", "Baggage.handling", "Checkin.service", "Inflight.service", "Cleanliness", "satisfaction")
+airplaneData[cols] <- lapply(airplaneData[cols], as.factor)
+
+#Drop X, ID, and Gate Location
+airplaneData <- subset(airplaneData, select = -c(X, id, Gate.location))
+
+#Obtain only numeric columns
+numCol <- unlist(lapply(airplaneData, is.numeric))
+
+#Convert arrival delay to int
+airplaneData$Arrival.Delay.in.Minutes <- as.integer(airplaneData$Arrival.Delay.in.Minutes)
+```
+
+## Split Dataset
+
+```{r split dataset}
+set.seed(10622)
+
+i <- sample(1:nrow(airplaneData), .80*nrow(airplaneData), replace = FALSE)
+planeTrain <- airplaneData[i,]
+planeTest <- airplaneData[-i,]
+```
+
+## Data Exploration Logistic Regression
+
+For this dataset we're trying to predict whether a customer is loyal or disloyal
+
+```{r Summary}
+summary(planeTrain)
+```
+
+```{r pairs}
+pairs(planeTrain[,numCol], col = c("red", "blue")[unclass(planeTrain$Customer.Type)])
+```
+
+While Departure Delay and Arrival Delay is linear, both factors seem to be well mixed. Flight Distance and Arrival Delay seems better since it's somewhat more linear and each factor seems to be better separated.
+
+## Logistic Regression
+
+```{r Logistic Regression}
+#Create Logistic Regression Model
+custLr <- glm(Customer.Type~Flight.Distance + Departure.Delay.in.Minutes, data=planeTrain,family="binomial")
+
+#Metrics
+summary(custLr)
+prob <- predict(custLr, newdata=planeTest, type="response")
+pred <- ifelse(prob>.5,1,0)
+acc <- mean(pred==as.integer(planeTest$Customer.Type))
+print(paste("Accuracy = ", acc))
+```
+
+Flight distance and departure delay are good factors, but the model isn't accurate. The while residual deviance is lower than null deviance, they're pretty close together in value.
+
+## Data Exploration KNN Classification
+
+```{r pairs}
+pairs(planeTrain[,numCol], col = c("red", "blue")[unclass(planeTrain$Customer.Type)])
+```
+
+The most likely numeric pairs to use for knn seems to be flight distance with arrival delay or departure delay because the 2 customer types seems to be more clustered together
+
+##Data KNN Classification
+
+```{r kNN Classification}
+library(class)
+
+#Get unlabeled data and labels
+unlabeled <- sample(2, nrow(airplaneData), replace=TRUE, prob=c(.8,.2))
+uTrain <- airplaneData[unlabeled==1, c(6,20)]
+uTest <- airplaneData[unlabeled==2, c(6,20)]
+uTrainLabel <- airplaneData[unlabeled==1, 2]
+uTestLabel <- airplaneData[unlabeled==2, 2]
+
+#Scale data
+uTrainScale <- scale(uTrain)
+uTestScale <- scale(uTest)
+
+#KNN
+knnPlane <- knn(train=uTrain, test=uTest, cl=uTrainLabel, k=3)
+
+#Obtain Accuracy
+knnResults <- knnPlane == uTestLabel
+acc <- length(which(knnResults == TRUE)) / length(knnResults)
+acc
+```
+
+This model is pretty accurate, mainly because the different factors seem to be well separated as shown in the pairs graph
+
+## Decision Tree
+
+```{r Decision Tree}
+library(tree)
+
+#Making Decision Tree
+planeTree <- tree(Customer.Type~Age + Flight.Distance + Departure.Delay.in.Minutes + Arrival.Delay.in.Minutes, data=planeTrain)
+plot(planeTree)
+text(planeTree, cex = .65, pretty = 1)
+
+#Getting Accuracy
+predTree <- predict(planeTree, newdata=planeTest, type="class")
+mean(predTree == planeTest$Customer.Type)
+```
+
+Let's see if pruning the tree would improve performance.
+
+```{r Pruning Tree}
+#Find the size to prune
+cv <- cv.tree(planeTree)
+plot(cv$size, cv$dev, type='b')
+
+#Prune tree
+prunedPlaneTree <- prune.tree(planeTree, best=5)
+
+plot(prunedPlaneTree)
+text(prunedPlaneTree, cex = .65, pretty = 1)
+
+#Getting Accuracy
+predPruneTree <- predict(prunedPlaneTree, newdata=planeTest, type="class")
+mean(predPruneTree == planeTest$Customer.Type)
+```
+
+This is a little more accurate than KNN, I think this is due to it's similarity of KNN. Both algorithms predict making different regions that contain each factor. While KNN uses an observation's nearest neighbor, decision trees split the training data into different regions.
