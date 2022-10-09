@@ -28,7 +28,7 @@ numCol <- unlist(lapply(airplaneData, is.numeric))
 airplaneData$Arrival.Delay.in.Minutes <- as.integer(airplaneData$Arrival.Delay.in.Minutes)
 ```
 
-## Split Dataset
+## Split Data set
 
 ```{r split dataset}
 set.seed(10622)
@@ -40,7 +40,7 @@ planeTest <- airplaneData[-i,]
 
 ## Data Exploration Logistic Regression
 
-For this dataset we're trying to predict whether a customer is loyal or disloyal
+For this data set we're trying to predict whether a customer is loyal or disloyal
 
 ```{r Summary}
 summary(planeTrain)
@@ -76,7 +76,7 @@ pairs(planeTrain[,numCol], col = c("red", "blue")[unclass(planeTrain$Customer.Ty
 
 The most likely numeric pairs to use for knn seems to be flight distance with arrival delay or departure delay because the 2 customer types seems to be more clustered together
 
-##Data KNN Classification
+## Data KNN Classification
 
 ```{r kNN Classification}
 library(class)
@@ -136,4 +136,4 @@ predPruneTree <- predict(prunedPlaneTree, newdata=planeTest, type="class")
 mean(predPruneTree == planeTest$Customer.Type)
 ```
 
-This is a little more accurate than KNN, I think this is due to it's similarity of KNN. Both algorithms predict making different regions that contain each factor. While KNN uses an observation's nearest neighbor, decision trees split the training data into different regions.
+This is a little more accurate than KNN, I think this is due to it's similarity of KNN. Both algorithms predict making different regions that contain each factor. While KNN uses an observation's nearest neighbor, decision trees split the training data into different regions. I think the small increase of accuracy is due to decision trees can have multiple regions of each factor, so it can get a pocket of a factor unlike KNN.

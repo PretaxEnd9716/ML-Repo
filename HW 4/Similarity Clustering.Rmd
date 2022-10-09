@@ -1,0 +1,127 @@
+---
+title: "Similarity Clustering"
+author: "Joshua Durana"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Source: <https://www.kaggle.com/datasets/deepcontractor/smoke-detection-dataset> This data set contains data collected by IOT devices to detect smoke
+
+## Load and Clean Data
+
+```{r Load and Clean Data}
+smokeData <- read.csv("Data/smokeData.csv", header = TRUE)
+
+#Remove unnecessary columns
+smokeData <- subset(smokeData, select = -c(X,UTC,CNT))
+
+#Convert fire alarm into factors
+smokeData$Fire.Alarm <- as.factor(smokeData$Fire.Alarm) 
+```
+
+## Data Exploration
+
+We're trying to see whether we can use clustering to find clusters for Fire.Alarm
+
+```{r plot}
+plot(smokeData$Pressure.hPa., smokeData$NC1.0, col = c("red", "blue")[unclass(smokeData$Fire.Alarm)])
+plot(smokeData$PM1.0, smokeData$TVOC.ppb., col = c("red", "blue")[unclass(smokeData$Fire.Alarm)])
+```
+
+Pairs with pressure has good separation between the different factors, but usually have more than 3 clusters. The other plot has good separation with 2 clusters.
+
+```{r Summary}
+summary(smokeData)
+```
+
+## K-Means Clustering
+
+```{r K-Means Clustering Pressure and NC1.0}
+#Scale Pressure and NC1.0
+scaledCol <- sapply(smokeData[c(7, 11)], function(x) c(scale(x)))
+
+#Kmeans
+smokeKCluster <- kmeans(scaledCol, 2, nstart = 50)
+smokeKCluster
+
+table(smokeData$Fire.Alarm, smokeKCluster$cluster)
+```
+
+The within sum of squares seems pretty large and the table seems to show that the clusters and the fire alarm factor doesn't really correlate. This is most likely due to this pair's plot having 3 clusters of fire alarm values. It's shown when I use 3 clusters for the same pair
+
+```{r K-Means Clustering Pressure and NC1.0 3 Clusters}
+#Scale Pressure and NC1.0
+scaledCol <- sapply(smokeData[c(7, 11)], function(x) c(scale(x)))
+
+#Kmeans
+smokeKCluster <- kmeans(scaledCol, 3, nstart = 50)
+smokeKCluster
+
+table(smokeData$Fire.Alarm, smokeKCluster$cluster)
+```
+
+```{r K-Means Clustering TVOC and PM1.0}
+#Scale TVOC and PM1.0
+scaledCol <- sapply(smokeData[c(3, 8)], function(x) c(scale(x)))
+
+#Kmeans
+smokeKCluster <- kmeans(scaledCol, 2, nstart = 50)
+smokeKCluster
+
+
+table(smokeData$Fire.Alarm, smokeKCluster$cluster)
+```
+
+The within sum of squares are big, but compared with the other cluster is much more smaller. The table also shows an improvement between correlation the clusters and fire alarm. This improvement is likely due to this pair's plot being separated by 2 main groups.
+
+## Hierarchical Clustering
+
+```{r Hierarchical Clustering}
+library(flexclust)
+
+#Subset Data
+set.seed(10622)
+
+i <- sample(1:nrow(smokeData), .2*nrow(smokeData), replace = FALSE)
+smokeSubset <- smokeData[i,]
+
+#Scale Data
+scaledDist <- dist(scale(smokeSubset[1:12]))
+
+#Hierarchical Clustering
+smokeHClust <- hclust(scaledDist[])
+
+plot(smokeHClust)
+
+for (cut in 2:40)
+{
+  smokeCut <- cutree(smokeHClust, cut)
+  smokeTable <- table(smokeCut, smokeSubset$Fire.Alarm)
+  print(smokeTable)
+  smokeRI <- randIndex(smokeTable)
+  print(paste(cut,"RI: ", smokeRI))
+}
+
+```
+
+The best clustering results seems to be starting at cut 34. This is most likely due to the clustering over fitting at the lower heights. This clustering method seems much better with lower dimension data sets to reduce the risk of over fitting.
+
+## Model Clustering
+
+```{r Model Clustering}
+library(mclust)
+
+scaledCol <- sapply(smokeSubset[c(7,11)], function(x) c(scale(x)))
+
+smokeDens <- densityMclust(scaledCol)
+plot(smokeDens, what="density")
+
+smokeModel <- Mclust(scaledCol)
+plot(smokeModel, what = "classification")
+
+summary(smokeModel)
+```
+
+This model didn't really cluster the points by whether it triggered a fire alarm. The model seems to be very sensitive, because even close data points are separated in different clusters.
+
+The best clustering model at predicting seems to be K-Means due to being able to specify how many clusters you want. The other 2 models overfit the data. But, clustering isn't really used for prediction, it's mainly used to gather insights about the data.
