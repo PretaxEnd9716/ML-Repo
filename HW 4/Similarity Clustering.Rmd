@@ -2,7 +2,9 @@
 title: "Similarity Clustering"
 author: "Joshua Durana"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 Source: <https://www.kaggle.com/datasets/deepcontractor/smoke-detection-dataset> This data set contains data collected by IOT devices to detect smoke
@@ -28,6 +30,8 @@ plot(smokeData$Pressure.hPa., smokeData$NC1.0, col = c("red", "blue")[unclass(sm
 plot(smokeData$PM1.0, smokeData$TVOC.ppb., col = c("red", "blue")[unclass(smokeData$Fire.Alarm)])
 ```
 
+![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAaCAYAAADFTB7LAAAAcklEQVR42u3OywmAQBAD0IAufvrvw4PHbUG87FVsQBALUEaDHYwuIiSQ42QeoCg/y1bD9gZ2tL7ylhvZgFOALRVsdZa33MgGTOF+MDvL2ySggAIKKKCAAgr4GXAoYePDciMbMF7jfQHrnOVtzAlUlJdzAjEsX7Hb176LAAAAAElFTkSuQmCC "Run Current Chunk")
+
 Pairs with pressure has good separation between the different factors, but usually have more than 3 clusters. The other plot has good separation with 2 clusters.
 
 ```{r Summary}
@@ -36,13 +40,15 @@ summary(smokeData)
 
 ## K-Means Clustering
 
+smokeKCluster
+
 ```{r K-Means Clustering Pressure and NC1.0}
 #Scale Pressure and NC1.0
 scaledCol <- sapply(smokeData[c(7, 11)], function(x) c(scale(x)))
 
 #Kmeans
 smokeKCluster <- kmeans(scaledCol, 2, nstart = 50)
-smokeKCluster
+smokeKCluster$withinss
 
 table(smokeData$Fire.Alarm, smokeKCluster$cluster)
 ```
@@ -55,7 +61,7 @@ scaledCol <- sapply(smokeData[c(7, 11)], function(x) c(scale(x)))
 
 #Kmeans
 smokeKCluster <- kmeans(scaledCol, 3, nstart = 50)
-smokeKCluster
+smokeKCluster$withinss
 
 table(smokeData$Fire.Alarm, smokeKCluster$cluster)
 ```
@@ -66,7 +72,7 @@ scaledCol <- sapply(smokeData[c(3, 8)], function(x) c(scale(x)))
 
 #Kmeans
 smokeKCluster <- kmeans(scaledCol, 2, nstart = 50)
-smokeKCluster
+smokeKCluster$withinss
 
 
 table(smokeData$Fire.Alarm, smokeKCluster$cluster)
@@ -97,7 +103,6 @@ for (cut in 2:40)
 {
   smokeCut <- cutree(smokeHClust, cut)
   smokeTable <- table(smokeCut, smokeSubset$Fire.Alarm)
-  print(smokeTable)
   smokeRI <- randIndex(smokeTable)
   print(paste(cut,"RI: ", smokeRI))
 }
@@ -124,4 +129,4 @@ summary(smokeModel)
 
 This model didn't really cluster the points by whether it triggered a fire alarm. The model seems to be very sensitive, because even close data points are separated in different clusters.
 
-The best clustering model at predicting seems to be K-Means due to being able to specify how many clusters you want. The other 2 models overfit the data. But, clustering isn't really used for prediction, it's mainly used to gather insights about the data.
+The best clustering model at predicting seems to be K-Means due to being able to specify how many clusters you want. The other 2 models overfit the data. The hierarchy clustering was correct on having 2 clusters, while the model clustering had 9 clusters. But, clustering isn't really used for prediction, it's mainly used to gather insights about the data.

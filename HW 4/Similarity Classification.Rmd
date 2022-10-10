@@ -46,7 +46,7 @@ For this data set we're trying to predict whether a customer is loyal or disloya
 summary(planeTrain)
 ```
 
-```{r pairs}
+```{r pairs Log Reg}
 pairs(planeTrain[,numCol], col = c("red", "blue")[unclass(planeTrain$Customer.Type)])
 ```
 
@@ -70,7 +70,7 @@ Flight distance and departure delay are good factors, but the model isn't accura
 
 ## Data Exploration KNN Classification
 
-```{r pairs}
+```{r pairs KNN}
 pairs(planeTrain[,numCol], col = c("red", "blue")[unclass(planeTrain$Customer.Type)])
 ```
 
