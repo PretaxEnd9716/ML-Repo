@@ -1,0 +1,125 @@
+---
+title: "Ensembler rcd180001"
+author: "Joshua Durana"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Source: https://www.kaggle.com/datasets/danofer/law-school-admissions-bar-passage
+
+## Load and Clean Data
+```{r Load and Clean Data}
+BARdata <- read.csv("Data/BarData.csv", header = TRUE, na.strings = c("", "NA"))
+
+#Remove unneccessary factors
+BARdata <- subset(BARdata, select = c(lsat, bar_passed, ugpa, fulltime, fam_inc, tier))
+
+#Remove NAs
+BARdata <- na.omit(BARdata)
+
+#Sets columns into factors
+setToFactors <- c("bar_passed", "fulltime", "fam_inc", "tier")
+BARdata[setToFactors] <- lapply(BARdata[setToFactors], as.factor)
+```
+
+## Split Data
+```{r Split Data}
+set.seed(1022)
+
+i <- sample(nrow(BARdata), .80*nrow(BARdata), replace = FALSE)
+BARTrain <- BARdata[i,]
+BARTest <- BARdata[-i,]
+```
+
+## Data Exploration
+```{r summary}
+summary(BARTrain)
+```
+
+```{r pairs}
+plot(BARTrain$lsat, BARTrain$ugpa, col = c("red", "blue") [unclass(BARTrain$bar_passed)])
+```
+The passed first time and failed instances seemed to have a good separation, but the passed 2nd time seems to be well mixed between both factors.
+
+## Decision Tree
+```{r Decision Tree}
+library(tree)
+
+
+#Tree
+BARTree <- tree(bar_passed~., data = BARTrain)
+
+plot(BARTree)
+text(BARTree, cex = .75, pretty = 0)
+
+#Accuracy and MCC
+BARTreePred <- predict(BARTree, newdata = BARTest, type = "class")
+print(paste("accuracy = ", mean(BARTreePred == BARTest$bar_passed)))
+```
+The decision tree seems to have overfitted and can be pruned. But, the model seemed to be very accurate.
+
+## Random Forest 
+```{r Random Forest}
+library(randomForest)
+library(mltools)
+
+#Random Forest
+BARrf <- randomForest(bar_passed~., data = BARTrain, importance = TRUE)
+BARrf
+```
+```{r RF Predict and Metrics, warning=FALSE}
+#Predict
+BARrfPred <- predict(BARrf, newData = BARTest, type = "response")
+
+#Metrics
+print(paste("accuracy = ", mean(BARrfPred == BARTest$bar_passed)))
+print(paste("MCC = ", mcc(factor(BARrfPred), BARTest$bar_passed)))
+```
+It has a lower accuracy than decision tree. Most likely due to using a subset of the data for each tree and the low amount of passed_2nd_time instances causing some inaccuracy. The MCC metric is pretty close to 0, which means that test and random forest seems to agree and disagree pretty randomly.
+
+## adabag
+```{r adabag}
+library(adabag)
+
+#Boosting
+BARada <- boosting(bar_passed~., data = BARTrain, boos = TRUE)
+summary(BARada)
+```
+
+```{r adabag Metrics}
+#Metrics
+adaPred <- predict(BARada, newdata = BARTest, type = "response")
+adaAcc <- mean(adaPred$class == BARTest$bar_passed)
+adaMcc <- mcc(factor(adaPred$class), BARTest$bar_passed)
+
+print(paste("Accuracy = ", adaAcc))
+print(paste("MCC = ", adaMcc))
+```
+The model seems to be very accurate most likely due to using the entire training set unlike random forest. The MCC number is 15% which is higher than random forest, so the model and test data seem to slightly agree.
+
+## XGBoost
+```{r XGBoost}
+library(xgboost)
+
+#Convert to one-hot and matrix
+trainLabel <- ifelse(BARTrain$bar_passed=="TRUE", 1, 0)
+trainMatrix <- data.matrix(BARTrain[,c(-2)])
+
+#XGBoost
+BARXGBoost <- xgboost(data = trainMatrix, label = trainLabel, nrounds = 100)
+```
+
+```{r XGBoost Metrics}
+#Convert to one-hot and matrix
+testLabel <- ifelse(BARTest$bar_passed=="TRUE", 1, 0)
+testMatrix <- data.matrix(BARTest[,c(-2)])
+
+#Prediction
+xPred <- predict(BARXGBoost, testMatrix, type = "response")
+xPredOut <- ifelse(xPred>.5, 1, 0)
+
+#Mean and MCC
+print(paste("Accuracy = ", mean(xPredOut == testLabel)))
+print(paste("MCC = ", mcc(xPredOut, testLabel)))
+```
+The accuracy is high, but adaboost is slightly more accurate. Adaboost's mcc is also slighty better than xgboost. But, it's much more faster. So, I would rather use xgboost for bigger datasets.

@@ -1,0 +1,110 @@
+---
+title: "SVM Classification rcd180001"
+author: "Joshua Durana"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+Source: https://www.kaggle.com/datasets/danofer/law-school-admissions-bar-passage
+
+## Load and Clean Data
+```{r Load and Clean Data}
+BARdata <- read.csv("Data/BarData.csv", header = TRUE, na.strings = c("", "NA"))
+
+#Remove unneccessary factors
+BARdata <- subset(BARdata, select = c(lsat, bar_passed, ugpa))
+
+#Remove NAs
+BARdata <- na.omit(BARdata)
+
+#Sets columns into factors
+setToFactors <- c("bar_passed")
+BARdata[setToFactors] <- lapply(BARdata[setToFactors], as.factor)
+```
+
+## Split Data
+```{r Split Data}
+set.seed(1022)
+
+spl <- c(train = .6, test = .2, validate = .2)
+i <- sample(cut(1:nrow(BARdata), nrow(BARdata) * cumsum(c(0, spl)), labels = names(spl)))
+
+BARTrain <- BARdata[i == "train",]
+BARTest <- BARdata[i == "test",]
+BARVal <- BARdata[i == "validate",]
+```
+
+## Data Exploration
+```{r summary}
+summary(BARTrain)
+```
+It seems that the majority of people pass the bar
+```{r pairs}
+plot(BARTrain$lsat, BARTrain$ugpa, col = c("red", "blue") [unclass(BARTrain$bar_passed)])
+```
+It seems like the fails and pass are somewhat mixed. But, it looks like that the passes are fully have the right side of the plot.
+
+## SVM Linear
+```{r Linear}
+library(e1071)
+
+#SVM
+linearBARSVM <- svm(bar_passed ~ ., data = BARTrain, kernel = "linear", scale = TRUE)
+summary(linearBARSVM)
+
+#Predictions and Accuracy
+linearBARPredict <- predict(linearBARSVM, newdata = BARTest, type = "response")
+mean(linearBARPredict == BARTest$bar_passed)
+```
+```{r Linear Tuned}
+linearTuned <- tune(svm, bar_passed~., data = BARVal, kernel = "linear", ranges = list(cost = c(.01, .1, 1, 10)), gamma = c(.5,1,2,3,4))
+summary(linearTuned$best.model)
+
+#Predictions and Accuracy
+linearSVMTuned <- predict(linearTuned$best.model, newdata = BARTest)
+mean(linearSVMTuned == BARTest$bar_passed)
+```
+
+## SVM Polynomial
+```{r Polynomial}
+#SVM
+polyBARSVM <- svm(bar_passed ~ ., data = BARTrain, kernel = "polynomial", scale = TRUE)
+summary(polyBARSVM)
+
+#Predictions and Accuracy
+polyBARPredict <- predict(polyBARSVM, newdata = BARTest)
+mean(polyBARPredict == BARTest$bar_passed)
+```
+```{r Polynomial Tuned}
+polyTuned <- tune(svm, bar_passed~., data = BARVal, kernel = "polynomial", ranges = list(cost = c(.001, .01, .1, 1, 10)), gamma = c(.5,1,2,3,4))
+summary(polyTuned$best.model)
+
+#Predictions and Accuracy
+polySVMTuned <- predict(polyTuned$best.model, newdata = BARTest)
+mean(polySVMTuned == BARTest$bar_passed)
+```
+
+## SVM Radial
+```{r Radial}
+#SVM
+radialBARSVM <- svm(bar_passed ~ ., data = BARTrain, kernel = "radial", scale = TRUE)
+summary(radialBARSVM)
+
+#Predictions and Accuracy
+radialBARPredict <- predict(radialBARSVM, newdata = BARTest)
+mean(radialBARPredict == BARTest$bar_passed)
+```
+
+```{r Radial Tuned}
+radialTuned <- tune(svm, bar_passed~., data = BARVal, kernel = "radial", ranges = list(cost = c(.001, .01, .1, 1, 10, 10)), gamma = c(.5,1,2,3,4))
+summary(radialTuned$best.model)
+
+#Predictions and Accuracy
+radialSVMTuned <- predict(radialTuned$best.model, newdata = BARTest)
+mean(radialSVMTuned == BARTest$bar_passed)
+```
+
+## Conclusions
+The best kernel seems to be radial by a tiny bit, most likely due to the fails seems to be more congregated on the lower values of ugpa and lsat scores. The accuracy seems to be identical for polynomial and linear, most likely due to the shape of the hyperplane being very similar to both of the kernels. All of their accuracy seem pretty good. 

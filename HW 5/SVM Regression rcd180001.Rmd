@@ -1,0 +1,137 @@
+---
+title: "SVM Regression RCD18001"
+author: "Joshua Durana"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Source: <https://www.kaggle.com/datasets/hmavrodiev/london-bike-sharing-dataset> This dataset measures the bikes rented in London and the weather
+
+## Read and Clean Data
+
+```{r Read and Clean Data}
+bikeData <- read.csv("Data/BikeData.csv", header = TRUE)
+
+#Sets columns into factors
+colFactors <- c("weather_code", "is_holiday", "is_weekend", "season")
+bikeData[colFactors] <- lapply(bikeData[colFactors], as.factor)
+
+#Remove timestamp
+bikeData <- subset(bikeData, select = -c(timestamp))
+```
+
+## Split Data
+
+```{r Split Data}
+set.seed(9582)
+
+spl <- c(train = .6, test = .2, validate = .2)
+i <- sample(cut(1:nrow(bikeData), nrow(bikeData) * cumsum(c(0, spl)), labels = names(spl)))
+
+bikeTrain <- bikeData[i == "train",]
+bikeTest <- bikeData[i == "test",]
+bikeVal <- bikeData[i == "validate",]
+```
+
+## Data Exploration
+
+```{r summary}
+summary(bikeTrain)
+```
+
+```{r pairs}
+numCol <- unlist(lapply(bikeTrain, is.numeric))
+pairs(bikeTrain[,numCol])
+```
+
+T2 and T1 have very similar plots with cnt and they both seem to have somewhat a linear shape to their plots.
+
+```{r Weather Box Plot}
+plot(bikeTrain$weather_code, bikeTrain$cnt, xlab = "Weather Code", ylab = "Bike Rentals")
+```
+
+There seems to be more rentals when the weather is clear or cloudy. There seems to be a lot of outliers for all weather types except for thunderstorms.
+
+```{r Weekend Density Plot}
+cdplot(bikeTrain$cnt, bikeTrain$is_weekend)
+```
+
+It seems that there are majority of bike rentals are during the weekdays.
+
+## SVM Linear
+
+```{r Linear Untuned}
+library(e1071)
+
+#SVM
+linearBikeSVM <- svm(cnt ~ ., data = bikeTrain, kernel = "linear", scale = TRUE)
+summary(linearBikeSVM)
+
+#Predict and RMSE
+linearSVMPred <- predict(linearBikeSVM, newdata = bikeTest)
+
+rmse <- mean((linearSVMPred - bikeTest$cnt)^2)
+print(paste("RMSE = ", rmse))
+```
+
+```{r Linear Tuned}
+#Get best cost 
+linearTune <- tune(svm, cnt ~ ., data = bikeVal, kernel = "linear", ranges = list(cost = c(.001, .01, .1, 1, 5, 10)))
+
+#Predict and RMSE 
+linearSVMPredTuned <- predict(linearTune$best.model, newdata = bikeTest)
+
+rmse <- mean((linearSVMPredTuned - bikeTest$cnt)^2)
+print(paste("RMSE = ", rmse))
+```
+
+## SVM Polynomial
+
+```{r Polynomial}
+#SVM
+polyBikeSVM <- svm(cnt ~ ., data = bikeTrain, kernel = "polynomial", scale = TRUE)
+summary(polyBikeSVM)
+
+#Predict and RMSE
+polySVMPred <- predict(polyBikeSVM, newdata = bikeTest)
+
+rmse <- mean((polySVMPred - bikeTest$cnt)^2)
+print(paste("RMSE = ", rmse))
+```
+
+```{r Polynomial Tuned}
+polyTune <- tune(svm, cnt ~ ., data = bikeVal, kernel = "polynomial", ranges = list(cost = c(.001, .01, .1, 1, 5, 10)))
+
+#Predict and RMSE 
+polySVMPredTuned <- predict(polyTune$best.model, newdata = bikeTest)
+
+rmse <- mean((polySVMPredTuned - bikeTest$cnt)^2)
+print(paste("RMSE = ", rmse))
+```
+
+## SVM Radial
+
+```{r Radial}
+#SVM
+radialBikeSVM <- svm(cnt ~ ., data = bikeTrain, kernel = "radial", scale = TRUE)
+summary(radialBikeSVM)
+
+#Predict and RMSE
+radialSVMPred <- predict(radialBikeSVM, newdata = bikeTest)
+
+rmse <- mean((radialSVMPred - bikeTest$cnt)^2)
+print(paste("RMSE = ", rmse))
+```
+
+```{r Radial Tuned}
+radialTune <- tune(svm, cnt ~ ., data = bikeVal, kernel = "radial", ranges = list(cost = c(.001, .01, .1, 1, 5, 10)))
+
+#Predict and RMSE 
+radialSVMPredTuned <- predict(radialTune$best.model, newdata = bikeTest)
+
+rmse <- mean((radialSVMPredTuned - bikeTest$cnt)^2)
+print(paste("RMSE = ", rmse))
+```
+
+## Conclusion
+Radial seems to be the better kernel due to the lower rmse than all the other kernels. I think this is due the data not really being linear or polynomial, so radial seems to be the best fit for the hyperplane. But, I really don't think each kernel made much of a difference. The tuning for each kernel only improved the rmse by a bit, while taking a long time to compute. 
